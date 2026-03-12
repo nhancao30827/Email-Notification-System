@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tests
+tests/
+
+# Git
+.git/
+
+# Local env file (injected at runtime via docker-compose)
+.env
+
+# Editor / OS
+.vscode/
+.idea/
+*.DS_Store
