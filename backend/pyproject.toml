@@ -1,6 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
+<<<<<<< HEAD
 description = "Email Distribution System API"
 requires-python = ">=3.13"
 dependencies = [
@@ -44,3 +45,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 include = ["*.py", "alembic/**/*.py"]
 
+=======
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+>>>>>>> 553399da619b38e1a5001024f685d4c04864e404

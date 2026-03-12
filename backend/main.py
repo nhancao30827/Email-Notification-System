@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -49,3 +50,11 @@ app.include_router(deliveries_router)
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+=======
+def main():
+    print("Hello from backend!")
+
+
+if __name__ == "__main__":
+    main()
+>>>>>>> 553399da619b38e1a5001024f685d4c04864e404
