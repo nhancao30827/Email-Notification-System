@@ -28,7 +28,8 @@ app = FastAPI(
     title="Email Distribution System",
     version="0.1.0",
     lifespan=lifespan,
-    # Disable interactive docs in production by setting DOCS_URL env var to null
+    docs_url=settings.DOCS_URL,
+    redoc_url=settings.REDOC_URL,
 )
 
 app.add_middleware(
