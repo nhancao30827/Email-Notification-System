@@ -37,8 +37,11 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 async def refresh(data: RefreshRequest):
     try:
         return await service.refresh_tokens(data.refresh_token)
-    except service.AuthError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+    except service.AuthError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

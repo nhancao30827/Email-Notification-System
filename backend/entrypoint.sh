@@ -1,6 +1,11 @@
 #!/bin/sh
 set -e
 
+if [ "$#" -gt 0 ]; then
+	echo "Starting custom command..."
+	exec "$@"
+fi
+
 echo "Running database migrations..."
 uv run alembic upgrade head
 

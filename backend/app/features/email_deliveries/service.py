@@ -35,15 +35,18 @@ async def get_delivery_stats(
         EmailDelivery.campaign_id == campaign_id
     )
 
-    def count_for(s: DeliveryStatus):
-        return base.where(EmailDelivery.status == s)
+    def count_for_status(status: DeliveryStatus):
+        return base.where(EmailDelivery.status == status)
+
+    def count_for_timestamp(column):
+        return base.where(column.is_not(None))
 
     total = await db.scalar(base) or 0
-    sent = await db.scalar(count_for(DeliveryStatus.sent)) or 0
-    opened = await db.scalar(count_for(DeliveryStatus.opened)) or 0
-    clicked = await db.scalar(count_for(DeliveryStatus.clicked)) or 0
-    bounced = await db.scalar(count_for(DeliveryStatus.bounced)) or 0
-    failed = await db.scalar(count_for(DeliveryStatus.failed)) or 0
+    sent = await db.scalar(count_for_timestamp(EmailDelivery.sent_at)) or 0
+    opened = await db.scalar(count_for_timestamp(EmailDelivery.opened_at)) or 0
+    clicked = await db.scalar(count_for_timestamp(EmailDelivery.clicked_at)) or 0
+    bounced = await db.scalar(count_for_status(DeliveryStatus.bounced)) or 0
+    failed = await db.scalar(count_for_status(DeliveryStatus.failed)) or 0
 
     return DeliveryStatsResponse(
         total=total,

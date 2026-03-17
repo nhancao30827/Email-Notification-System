@@ -184,3 +184,108 @@ class TestGetDeliveryStats:
     async def test_unauthenticated_returns_401(self, client):
         resp = await client.get(f"/campaigns/{_CAMPAIGN_ID}/deliveries/stats")
         assert resp.status_code == 401
+
+
+class TestGetDeliveryStatsService:
+    async def test_counts_cumulative_metrics_from_timestamps(self):
+        db = AsyncMock()
+        db.scalar = AsyncMock(side_effect=[10, 6, 3, 1, 0, 0])
+
+        with patch.object(delivery_service, "get_campaign", new=AsyncMock()):
+            stats = await delivery_service.get_delivery_stats(
+                db,
+                uuid.UUID("00000000-0000-0000-0000-000000000001"),
+                _CAMPAIGN_ID,
+            )
+
+        assert stats == DeliveryStatsResponse(
+            total=10,
+            sent=6,
+            opened=3,
+            clicked=1,
+            bounced=0,
+            failed=0,
+        )
+
+        queries = [str(call.args[0]) for call in db.scalar.await_args_list]
+        assert "email_deliveries.sent_at IS NOT NULL" in queries[1]
+        assert "email_deliveries.opened_at IS NOT NULL" in queries[2]
+        assert "email_deliveries.clicked_at IS NOT NULL" in queries[3]
+        assert "email_deliveries.status = :status_1" in queries[4]
+        assert "email_deliveries.status = :status_1" in queries[5]
+
+
+# ===========================================================================
+# POST /campaigns/{id}/deliveries/upload-csv
+# ===========================================================================
+
+
+class TestEnqueueCsvDeliveryTask:
+    async def test_success_returns_202_with_task_id(self, authenticated_client):
+        fake_result = type("FakeResult", (), {"id": "task-123"})()
+
+        with (
+            patch(
+                "app.features.email_deliveries.router.campaign_service.get_campaign",
+                new=AsyncMock(return_value=object()),
+            ),
+            patch(
+                "app.features.email_deliveries.router.celery_app.send_task",
+                return_value=fake_result,
+            ),
+        ):
+            resp = await authenticated_client.post(
+                f"/campaigns/{_CAMPAIGN_ID}/deliveries/upload-csv",
+                files={
+                    "file": (
+                        "recipients.csv",
+                        "email,name\nalice@example.com,Alice\n",
+                        "text/csv",
+                    )
+                },
+            )
+
+        assert resp.status_code == 202
+        assert resp.json() == {"task_id": "task-123", "status": "queued"}
+
+    async def test_invalid_extension_returns_400(self, authenticated_client):
+        resp = await authenticated_client.post(
+            f"/campaigns/{_CAMPAIGN_ID}/deliveries/upload-csv",
+            files={"file": ("recipients.txt", "email\na@example.com\n", "text/plain")},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Only .csv files are supported"
+
+    async def test_empty_csv_returns_400(self, authenticated_client):
+        resp = await authenticated_client.post(
+            f"/campaigns/{_CAMPAIGN_ID}/deliveries/upload-csv",
+            files={"file": ("recipients.csv", "", "text/csv")},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Uploaded CSV file is empty"
+
+    async def test_campaign_not_found_returns_404(self, authenticated_client):
+        with patch(
+            "app.features.email_deliveries.router.campaign_service.get_campaign",
+            new=AsyncMock(side_effect=CampaignNotFoundError("Campaign not found")),
+        ):
+            resp = await authenticated_client.post(
+                f"/campaigns/{_CAMPAIGN_ID}/deliveries/upload-csv",
+                files={
+                    "file": (
+                        "recipients.csv",
+                        "email\na@example.com\n",
+                        "text/csv",
+                    )
+                },
+            )
+
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Campaign not found"
+
+    async def test_unauthenticated_returns_401(self, client):
+        resp = await client.post(
+            f"/campaigns/{_CAMPAIGN_ID}/deliveries/upload-csv",
+            files={"file": ("recipients.csv", "email\na@example.com\n", "text/csv")},
+        )
+        assert resp.status_code == 401

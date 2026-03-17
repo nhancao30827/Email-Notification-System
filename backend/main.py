@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -13,6 +13,7 @@ from app.features.auth.router import router as auth_router
 from app.features.campaigns.router import router as campaigns_router
 from app.features.email_deliveries.router import router as deliveries_router
 from app.features.recipients.router import router as recipients_router
+from app.features.tracking.router import router as tracking_router
 from app.infrastructure.database.session import engine
 from app.infrastructure.redis.client import close_redis, init_redis
 
@@ -45,16 +46,17 @@ app.include_router(auth_router)
 app.include_router(campaigns_router)
 app.include_router(recipients_router)
 app.include_router(deliveries_router)
+app.include_router(tracking_router)
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
-=======
+
 def main():
     print("Hello from backend!")
 
 
 if __name__ == "__main__":
     main()
->>>>>>> 553399da619b38e1a5001024f685d4c04864e404
+

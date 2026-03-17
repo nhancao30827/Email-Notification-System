@@ -27,3 +27,8 @@ class DeliveryStatsResponse(BaseModel):
     clicked: int
     bounced: int
     failed: int
+
+
+class CsvDeliveryTaskResponse(BaseModel):
+    task_id: str
+    status: str
