@@ -6,7 +6,7 @@ import io
 import re
 import smtplib
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from email.message import EmailMessage
 
 _URL_RE = re.compile(r"(https?://[^\s<>'\"]+)")
@@ -25,6 +25,7 @@ from app.infrastructure.database.models.recipient import Recipient
 from app.infrastructure.database.session import AsyncSessionFactory
 
 _email_adapter = TypeAdapter(EmailStr)
+EMAIL_SEND_MAX_ATTEMPTS = 3
 
 
 def _parse_csv_rows(csv_content: str) -> tuple[list[tuple[str, str | None]], int]:
@@ -106,46 +107,85 @@ def _send_email_sync(
         smtp.send_message(message)
 
 
-async def _get_or_create_recipient(
+def _send_email_with_retries(
+    subject: str,
+    body: str,
+    to_email: str,
+    recipient_name: str | None,
+    delivery_id: str,
+) -> None:
+    last_error: Exception | None = None
+
+    for attempt in range(1, EMAIL_SEND_MAX_ATTEMPTS + 1):
+        try:
+            _send_email_sync(subject, body, to_email, recipient_name, delivery_id)
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt == EMAIL_SEND_MAX_ATTEMPTS:
+                break
+
+    raise RuntimeError(
+        f"Email send failed after {EMAIL_SEND_MAX_ATTEMPTS} attempts: {last_error}"
+    ) from last_error
+
+
+async def _prepare_recipients_for_campaign(
     db: AsyncSession,
     user_id: uuid.UUID,
-    email: str,
-    name: str | None,
-) -> Recipient:
-    recipient = await db.scalar(
-        select(Recipient).where(Recipient.user_id == user_id, Recipient.email == email)
-    )
-
-    if recipient is None:
-        recipient = Recipient(
-            user_id=user_id,
-            email=email,
-            name=name,
-            status=RecipientStatus.active,
-        )
-        db.add(recipient)
-        await db.flush()
-        return recipient
-
-    if name and not recipient.name:
-        recipient.name = name
-
-    return recipient
-
-
-async def _ensure_campaign_recipient_link(
-    db: AsyncSession,
     campaign_id: uuid.UUID,
-    recipient_id: uuid.UUID,
-) -> None:
-    existing_link = await db.scalar(
-        select(CampaignRecipient).where(
-            CampaignRecipient.campaign_id == campaign_id,
-            CampaignRecipient.recipient_id == recipient_id,
+    rows: list[tuple[str, str | None]],
+) -> tuple[dict[str, Recipient], set[uuid.UUID]]:
+    unique_emails = {email for email, _ in rows}
+    if not unique_emails:
+        return {}, set()
+
+    existing_rows = await db.scalars(
+        select(Recipient).where(
+            Recipient.user_id == user_id,
+            Recipient.email.in_(unique_emails),
         )
     )
-    if existing_link is None:
-        db.add(CampaignRecipient(campaign_id=campaign_id, recipient_id=recipient_id))
+    recipients_by_email = {recipient.email: recipient for recipient in existing_rows.all()}
+
+    name_by_email: dict[str, str] = {}
+    for email, name in rows:
+        if name and email not in name_by_email:
+            name_by_email[email] = name
+
+    missing_emails = unique_emails - recipients_by_email.keys()
+    if missing_emails:
+        new_recipients = [
+            Recipient(
+                user_id=user_id,
+                email=email,
+                name=name_by_email.get(email),
+                status=RecipientStatus.active,
+            )
+            for email in missing_emails
+        ]
+        db.add_all(new_recipients)
+        await db.flush()
+        for recipient in new_recipients:
+            recipients_by_email[recipient.email] = recipient
+
+    for email, recipient in recipients_by_email.items():
+        incoming_name = name_by_email.get(email)
+        if incoming_name and not recipient.name:
+            recipient.name = incoming_name
+
+    recipient_ids = [recipient.id for recipient in recipients_by_email.values()]
+    linked_recipient_ids: set[uuid.UUID] = set()
+    if recipient_ids:
+        existing_link_rows = await db.scalars(
+            select(CampaignRecipient.recipient_id).where(
+                CampaignRecipient.campaign_id == campaign_id,
+                CampaignRecipient.recipient_id.in_(recipient_ids),
+            )
+        )
+        linked_recipient_ids = set(existing_link_rows.all())
+
+    return recipients_by_email, linked_recipient_ids
 
 
 async def _process_campaign_csv_async(
@@ -181,10 +221,24 @@ async def _process_campaign_csv_async(
         campaign.status = CampaignStatus.sending
         await db.flush()
 
+        recipients_by_email, linked_recipient_ids = await _prepare_recipients_for_campaign(
+            db,
+            user_uuid,
+            campaign_uuid,
+            rows,
+        )
+
         for email, name in rows:
             processed += 1
-            recipient = await _get_or_create_recipient(db, user_uuid, email, name)
-            await _ensure_campaign_recipient_link(db, campaign_uuid, recipient.id)
+            recipient = recipients_by_email[email]
+            if recipient.id not in linked_recipient_ids:
+                db.add(
+                    CampaignRecipient(
+                        campaign_id=campaign_uuid,
+                        recipient_id=recipient.id,
+                    )
+                )
+                linked_recipient_ids.add(recipient.id)
 
             # Create the delivery row first so we have the ID for tracking URLs
             delivery = EmailDelivery(
@@ -196,9 +250,15 @@ async def _process_campaign_csv_async(
             await db.flush()  # populate delivery.id
 
             try:
-                _send_email_sync(campaign.subject, campaign.body, email, name, str(delivery.id))
+                _send_email_with_retries(
+                    campaign.subject,
+                    campaign.body,
+                    email,
+                    name,
+                    str(delivery.id),
+                )
                 delivery.status = DeliveryStatus.sent
-                delivery.sent_at = datetime.utcnow()
+                delivery.sent_at = datetime.now(timezone.utc)
                 sent += 1
             except Exception as exc:
                 delivery.status = DeliveryStatus.failed
@@ -206,7 +266,7 @@ async def _process_campaign_csv_async(
                 failed += 1
 
         campaign.status = CampaignStatus.sent
-        campaign.sent_at = datetime.utcnow()
+        campaign.sent_at = datetime.now(timezone.utc)
         await db.commit()
 
     return {

@@ -1,6 +1,6 @@
 import uuid
 from base64 import b64decode
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse, Response
@@ -27,7 +27,7 @@ async def track_open(
         select(EmailDelivery).where(EmailDelivery.id == delivery_id)
     )
     if delivery is not None and delivery.opened_at is None:
-        delivery.opened_at = datetime.utcnow()
+        delivery.opened_at = datetime.now(timezone.utc)
         delivery.status = DeliveryStatus.opened
     # Always return pixel — never leak whether the delivery_id is valid
     return Response(content=_PIXEL_GIF, media_type="image/gif")
@@ -46,6 +46,6 @@ async def track_click(
         select(EmailDelivery).where(EmailDelivery.id == delivery_id)
     )
     if delivery is not None and delivery.clicked_at is None:
-        delivery.clicked_at = datetime.utcnow()
+        delivery.clicked_at = datetime.now(timezone.utc)
         delivery.status = DeliveryStatus.clicked
     return RedirectResponse(url=url, status_code=302)
