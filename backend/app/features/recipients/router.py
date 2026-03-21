@@ -18,6 +18,7 @@ async def create_recipient(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Create a recipient record for the authenticated user."""
     try:
         return await service.create_recipient(db, current_user.id, data)
     except service.RecipientConflictError as e:
@@ -29,6 +30,7 @@ async def list_recipients(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """List all recipients owned by the current user."""
     return await service.list_recipients(db, current_user.id)
 
 
@@ -38,6 +40,7 @@ async def get_recipient(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Get one recipient by id for the current user."""
     try:
         return await service.get_recipient(db, current_user.id, recipient_id)
     except service.RecipientNotFoundError as e:
@@ -51,6 +54,7 @@ async def update_recipient(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Update recipient fields for a user-owned recipient."""
     try:
         return await service.update_recipient(db, current_user.id, recipient_id, data)
     except service.RecipientNotFoundError as e:
@@ -63,6 +67,7 @@ async def delete_recipient(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Delete a recipient owned by the authenticated user."""
     try:
         await service.delete_recipient(db, current_user.id, recipient_id)
     except service.RecipientNotFoundError as e:

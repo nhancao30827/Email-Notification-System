@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     SMTP_FROM_EMAIL: str = "noreply@example.com"
 
+    # Delivery task performance/reliability tuning
+    EMAIL_DELIVERY_BATCH_SIZE: int = 500
+    EMAIL_SEND_CONCURRENCY: int = 10
+    EMAIL_SEND_DELAY_SECONDS: float = 0.0
+    EMAIL_RATE_LIMIT_PER_SECOND: float = 0.0
+    EMAIL_TASK_MAX_RETRIES: int = 3
+    EMAIL_TASK_RETRY_BACKOFF_SECONDS: int = 30
+
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

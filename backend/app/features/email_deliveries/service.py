@@ -16,6 +16,7 @@ async def list_deliveries(
     campaign_id: uuid.UUID,
     status_filter: Optional[DeliveryStatus] = None,
 ) -> list[EmailDelivery]:
+    """Return deliveries for a campaign with optional status filtering."""
     await get_campaign(db, user_id, campaign_id)  # ownership check
     query = select(EmailDelivery).where(EmailDelivery.campaign_id == campaign_id)
     if status_filter is not None:
@@ -29,6 +30,7 @@ async def get_delivery_stats(
     user_id: uuid.UUID,
     campaign_id: uuid.UUID,
 ) -> DeliveryStatsResponse:
+    """Compute aggregate delivery counts for a campaign."""
     await get_campaign(db, user_id, campaign_id)  # ownership check
 
     base = select(func.count(EmailDelivery.id)).where(
@@ -36,9 +38,11 @@ async def get_delivery_stats(
     )
 
     def count_for_status(status: DeliveryStatus):
+        """Build a count query constrained to one delivery status."""
         return base.where(EmailDelivery.status == status)
 
     def count_for_timestamp(column):
+        """Build a count query for rows where a timestamp column is set."""
         return base.where(column.is_not(None))
 
     total = await db.scalar(base) or 0

@@ -32,3 +32,18 @@ class DeliveryStatsResponse(BaseModel):
 class CsvDeliveryTaskResponse(BaseModel):
     task_id: str
     status: str
+
+
+class CsvBase64UploadRequest(BaseModel):
+    csv_content: str
+
+
+class CsvDeliveryTaskStatusResponse(BaseModel):
+    task_id: str
+    state: str
+    status: str
+    processed: int = 0
+    sent: int = 0
+    failed: int = 0
+    invalid_rows: int = 0
+    error: Optional[str] = None

@@ -26,6 +26,7 @@ class CampaignConflictError(CampaignError):
 async def create_campaign(
     db: AsyncSession, user_id: uuid.UUID, data: CampaignCreate
 ) -> Campaign:
+    """Persist a new campaign for a user."""
     campaign = Campaign(user_id=user_id, **data.model_dump())
     db.add(campaign)
     await db.commit()
@@ -34,6 +35,7 @@ async def create_campaign(
 
 
 async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[Campaign]:
+    """Return all campaigns that belong to the given user."""
     result = await db.scalars(select(Campaign).where(Campaign.user_id == user_id))
     return list(result.all())
 
@@ -41,6 +43,7 @@ async def list_campaigns(db: AsyncSession, user_id: uuid.UUID) -> list[Campaign]
 async def get_campaign(
     db: AsyncSession, user_id: uuid.UUID, campaign_id: uuid.UUID
 ) -> Campaign:
+    """Fetch one user-owned campaign or raise not found."""
     campaign = await db.scalar(
         select(Campaign).where(
             Campaign.id == campaign_id, Campaign.user_id == user_id
@@ -57,6 +60,7 @@ async def update_campaign(
     campaign_id: uuid.UUID,
     data: CampaignUpdate,
 ) -> Campaign:
+    """Update editable fields on a draft campaign."""
     campaign = await get_campaign(db, user_id, campaign_id)
     if campaign.status != CampaignStatus.draft:
         raise CampaignConflictError("Only draft campaigns can be updated")
@@ -70,6 +74,7 @@ async def update_campaign(
 async def delete_campaign(
     db: AsyncSession, user_id: uuid.UUID, campaign_id: uuid.UUID
 ) -> None:
+    """Delete a campaign when business rules allow it."""
     campaign = await get_campaign(db, user_id, campaign_id)
     if campaign.status not in (CampaignStatus.draft, CampaignStatus.cancelled):
         raise CampaignConflictError("Only draft or cancelled campaigns can be deleted")
@@ -80,6 +85,7 @@ async def delete_campaign(
 async def list_campaign_recipients(
     db: AsyncSession, user_id: uuid.UUID, campaign_id: uuid.UUID
 ) -> list[Recipient]:
+    """List recipients linked to a campaign after ownership validation."""
     await get_campaign(db, user_id, campaign_id)  # ownership check
     rows = await db.scalars(
         select(Recipient)
@@ -95,6 +101,7 @@ async def add_recipient_to_campaign(
     campaign_id: uuid.UUID,
     recipient_id: uuid.UUID,
 ) -> None:
+    """Create a campaign-recipient link for a user-owned recipient."""
     await get_campaign(db, user_id, campaign_id)  # ownership check
     # Verify recipient belongs to this user
     recipient = await db.scalar(
@@ -119,6 +126,7 @@ async def remove_recipient_from_campaign(
     campaign_id: uuid.UUID,
     recipient_id: uuid.UUID,
 ) -> None:
+    """Delete an existing campaign-recipient association."""
     await get_campaign(db, user_id, campaign_id)  # ownership check
     link = await db.scalar(
         select(CampaignRecipient).where(

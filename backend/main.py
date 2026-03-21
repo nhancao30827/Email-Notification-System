@@ -49,6 +49,11 @@ app.include_router(deliveries_router)
 app.include_router(tracking_router)
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "Email Distribution System"}
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
