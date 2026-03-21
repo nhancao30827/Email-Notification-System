@@ -1,0 +1,184 @@
+:root {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #1f2937;
+  background: #f7f8fa;
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.subtle {
+  color: #4b5563;
+  margin-top: 6px;
+  font-size: 0.95rem;
+}
+
+.token-panel,
+.section-card {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.section-card-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.section-card-header p {
+  margin-top: 8px;
+  color: #374151;
+}
+
+.section-card-content {
+  margin-top: 12px;
+}
+
+.tab-nav {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-nav button {
+  padding: 8px 12px;
+}
+
+.tab-nav button.active {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #ffffff;
+}
+
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+label {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+input,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #c4cbd5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+button {
+  border: 1px solid #0f766e;
+  background: #0f766e;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #ffffff;
+  color: #0f766e;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.hint {
+  margin: 10px 0 0;
+  color: #374151;
+}
+
+.status-block p {
+  margin: 8px 0;
+}
+
+.status-table {
+  margin-top: 10px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.status-table th,
+.status-table td {
+  border: 1px solid #d1d5db;
+  padding: 8px;
+  text-align: left;
+}
+
+.status-table th {
+  background: #f3f4f6;
+}
+
+.error-message {
+  color: #b91c1c;
+  margin: 8px 0 0;
+}
+
+.warning-message {
+  color: #9a3412;
+  margin-top: 10px;
+}
+
+.success-message {
+  color: #166534;
+  margin: 8px 0 0;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 16px 12px 32px;
+  }
+
+  .inline-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

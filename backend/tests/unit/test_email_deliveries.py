@@ -289,3 +289,120 @@ class TestEnqueueCsvDeliveryTask:
             files={"file": ("recipients.csv", "email\na@example.com\n", "text/csv")},
         )
         assert resp.status_code == 401
+
+
+# ===========================================================================
+# POST /campaigns/{id}/deliveries/process-csv
+# ===========================================================================
+
+
+class TestEnqueueCsvDeliveryTaskBase64:
+    async def test_success_returns_202_with_task_id(self, authenticated_client):
+        fake_result = type("FakeResult", (), {"id": "task-456"})()
+        encoded = "ZW1haWwsbmFtZQphQGV4YW1wbGUuY29tLEFsaWNlCg=="  # email,name\na@example.com,Alice\n
+
+        with (
+            patch(
+                "app.features.email_deliveries.router.campaign_service.get_campaign",
+                new=AsyncMock(return_value=object()),
+            ),
+            patch(
+                "app.features.email_deliveries.router.celery_app.send_task",
+                return_value=fake_result,
+            ),
+        ):
+            resp = await authenticated_client.post(
+                f"/campaigns/{_CAMPAIGN_ID}/deliveries/process-csv",
+                json={"csv_content": encoded},
+            )
+
+        assert resp.status_code == 202
+        assert resp.json() == {"task_id": "task-456", "status": "queued"}
+
+    async def test_invalid_base64_returns_400(self, authenticated_client):
+        with patch(
+            "app.features.email_deliveries.router.campaign_service.get_campaign",
+            new=AsyncMock(return_value=object()),
+        ):
+            resp = await authenticated_client.post(
+                f"/campaigns/{_CAMPAIGN_ID}/deliveries/process-csv",
+                json={"csv_content": "not-base64"},
+            )
+
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Invalid base64 CSV payload"
+
+    async def test_unauthenticated_returns_401(self, client):
+        resp = await client.post(
+            f"/campaigns/{_CAMPAIGN_ID}/deliveries/process-csv",
+            json={"csv_content": "ZW1haWwK"},
+        )
+        assert resp.status_code == 401
+
+
+# ===========================================================================
+# GET /campaigns/deliveries/tasks/{task_id}
+# ===========================================================================
+
+
+class TestGetCsvDeliveryTaskStatus:
+    async def test_success_result_payload(self, authenticated_client):
+        fake_result = type(
+            "FakeAsyncResult",
+            (),
+            {
+                "state": "SUCCESS",
+                "result": {
+                    "status": "completed",
+                    "processed": 10,
+                    "sent": 8,
+                    "failed": 2,
+                    "invalid_rows": 1,
+                },
+                "info": None,
+            },
+        )()
+
+        with patch(
+            "app.features.email_deliveries.router.celery_app.AsyncResult",
+            return_value=fake_result,
+        ):
+            resp = await authenticated_client.get("/campaigns/deliveries/tasks/task-abc")
+
+        assert resp.status_code == 200
+        assert resp.json()["processed"] == 10
+        assert resp.json()["sent"] == 8
+        assert resp.json()["failed"] == 2
+        assert resp.json()["invalid_rows"] == 1
+
+    async def test_progress_payload(self, authenticated_client):
+        fake_result = type(
+            "FakeAsyncResult",
+            (),
+            {
+                "state": "PROGRESS",
+                "result": None,
+                "info": {
+                    "status": "processing",
+                    "processed": 5,
+                    "sent": 3,
+                    "failed": 2,
+                    "invalid_rows": 0,
+                },
+            },
+        )()
+
+        with patch(
+            "app.features.email_deliveries.router.celery_app.AsyncResult",
+            return_value=fake_result,
+        ):
+            resp = await authenticated_client.get("/campaigns/deliveries/tasks/task-xyz")
+
+        assert resp.status_code == 200
+        assert resp.json()["state"] == "PROGRESS"
+        assert resp.json()["status"] == "processing"
+        assert resp.json()["processed"] == 5
+
+    async def test_unauthenticated_returns_401(self, client):
+        resp = await client.get("/campaigns/deliveries/tasks/task-abc")
+        assert resp.status_code == 401

@@ -14,6 +14,7 @@ _bearer = HTTPBearer()
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Create a new user account with email and password."""
     try:
         user = await service.register(db, data)
     except service.AuthError as e:
@@ -23,6 +24,7 @@ async def register(data: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    """Authenticate user credentials and return access/refresh tokens."""
     try:
         return await service.login(db, data)
     except service.AuthError:
@@ -35,6 +37,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(data: RefreshRequest):
+    """Issue a new token pair from a valid refresh token."""
     try:
         return await service.refresh_tokens(data.refresh_token)
     except service.AuthError:
@@ -49,4 +52,5 @@ async def logout(
     data: RefreshRequest,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ):
+    """Invalidate access and refresh tokens by blacklisting their JTIs."""
     await service.logout(credentials.credentials, data.refresh_token)

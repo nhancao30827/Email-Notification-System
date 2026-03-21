@@ -21,6 +21,7 @@ class AuthError(Exception):
 
 
 async def register(db: AsyncSession, data: RegisterRequest) -> User:
+    """Register a user if the email is not already taken."""
     existing = await db.scalar(select(User).where(User.email == data.email))
     if existing:
         raise AuthError("Email already registered")
@@ -32,6 +33,7 @@ async def register(db: AsyncSession, data: RegisterRequest) -> User:
 
 
 async def login(db: AsyncSession, data: LoginRequest) -> TokenResponse:
+    """Validate credentials and return a fresh access/refresh token pair."""
     user = await db.scalar(select(User).where(User.email == data.email))
     if not user or not verify_password(data.password, user.password_hash):
         raise AuthError("Invalid credentials")
@@ -41,6 +43,7 @@ async def login(db: AsyncSession, data: LoginRequest) -> TokenResponse:
 
 
 async def refresh_tokens(refresh_token: str) -> TokenResponse:
+    """Rotate refresh token and issue a new access token pair."""
     try:
         payload = decode_token(refresh_token)
     except JWTError:
@@ -63,6 +66,7 @@ async def refresh_tokens(refresh_token: str) -> TokenResponse:
 
 
 async def logout(access_token: str, refresh_token: str) -> None:
+    """Blacklist provided access and refresh tokens until they expire."""
     now = int(datetime.now(UTC).timestamp())
     for token in (access_token, refresh_token):
         try:

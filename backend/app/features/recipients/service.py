@@ -23,6 +23,7 @@ class RecipientConflictError(RecipientError):
 async def create_recipient(
     db: AsyncSession, user_id: uuid.UUID, data: RecipientCreate
 ) -> Recipient:
+    """Create a recipient for a user, enforcing unique email constraint."""
     recipient = Recipient(user_id=user_id, **data.model_dump())
     db.add(recipient)
     try:
@@ -35,6 +36,7 @@ async def create_recipient(
 
 
 async def list_recipients(db: AsyncSession, user_id: uuid.UUID) -> list[Recipient]:
+    """Return all recipients associated with a user."""
     result = await db.scalars(select(Recipient).where(Recipient.user_id == user_id))
     return list(result.all())
 
@@ -42,6 +44,7 @@ async def list_recipients(db: AsyncSession, user_id: uuid.UUID) -> list[Recipien
 async def get_recipient(
     db: AsyncSession, user_id: uuid.UUID, recipient_id: uuid.UUID
 ) -> Recipient:
+    """Fetch one user-owned recipient or raise not found."""
     recipient = await db.scalar(
         select(Recipient).where(
             Recipient.id == recipient_id, Recipient.user_id == user_id
@@ -58,6 +61,7 @@ async def update_recipient(
     recipient_id: uuid.UUID,
     data: RecipientUpdate,
 ) -> Recipient:
+    """Update mutable recipient fields for the owner."""
     recipient = await get_recipient(db, user_id, recipient_id)
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(recipient, field, value)
@@ -69,6 +73,7 @@ async def update_recipient(
 async def delete_recipient(
     db: AsyncSession, user_id: uuid.UUID, recipient_id: uuid.UUID
 ) -> None:
+    """Delete a user-owned recipient record."""
     recipient = await get_recipient(db, user_id, recipient_id)
     await db.delete(recipient)
     await db.commit()

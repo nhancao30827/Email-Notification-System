@@ -19,6 +19,7 @@ async def create_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Create a campaign owned by the current user."""
     return await service.create_campaign(db, current_user.id, data)
 
 
@@ -27,6 +28,7 @@ async def list_campaigns(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """List all campaigns for the authenticated user."""
     return await service.list_campaigns(db, current_user.id)
 
 
@@ -36,6 +38,7 @@ async def get_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Return one campaign by id for the authenticated user."""
     try:
         return await service.get_campaign(db, current_user.id, campaign_id)
     except service.CampaignNotFoundError as e:
@@ -49,6 +52,7 @@ async def update_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Update a draft campaign owned by the authenticated user."""
     try:
         return await service.update_campaign(db, current_user.id, campaign_id, data)
     except service.CampaignNotFoundError as e:
@@ -63,6 +67,7 @@ async def delete_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Delete a campaign if its status allows deletion."""
     try:
         await service.delete_campaign(db, current_user.id, campaign_id)
     except service.CampaignNotFoundError as e:
@@ -77,6 +82,7 @@ async def list_campaign_recipients(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """List recipients currently linked to a campaign."""
     try:
         return await service.list_campaign_recipients(db, current_user.id, campaign_id)
     except service.CampaignNotFoundError as e:
@@ -93,6 +99,7 @@ async def add_recipient_to_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Attach an existing recipient to the campaign."""
     try:
         await service.add_recipient_to_campaign(
             db, current_user.id, campaign_id, data.recipient_id
@@ -113,6 +120,7 @@ async def remove_recipient_from_campaign(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Remove a recipient association from the campaign."""
     try:
         await service.remove_recipient_from_campaign(
             db, current_user.id, campaign_id, recipient_id
